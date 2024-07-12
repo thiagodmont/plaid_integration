@@ -5,6 +5,7 @@ import {
   InvestmentsHoldingsGetResponse,
   InvestmentsTransactionsGetResponse,
   AccountsGetResponse,
+  AccountBase,
   ItemGetResponse,
   InstitutionsGetByIdResponse,
   LiabilitiesGetResponse,
@@ -40,10 +41,16 @@ interface AuthDataItem {
   balance: string;
   name: string;
 }
+
 interface TransactionsDataItem {
   amount: string;
   date: string;
   name: string;
+}
+
+interface TransactionsScoreDataItem {
+  account: string;
+  score: string;
 }
 
 interface IdentityDataItem {
@@ -147,6 +154,7 @@ export interface ErrorDataItem {
 export type DataItem =
   | AuthDataItem
   | TransactionsDataItem
+  | TransactionsScoreDataItem
   | IdentityDataItem
   | BalanceDataItem
   | InvestmentsDataItem
@@ -194,6 +202,17 @@ export const transactionsCategories: Array<Categories> = [
   {
     title: "Date",
     field: "date",
+  },
+];
+
+export const transactionsScore: Array<Categories> = [
+  {
+    title: "Account",
+    field: "account",
+  },
+  {
+    title: "Score",
+    field: "score",
   },
 ];
 
@@ -504,6 +523,17 @@ export const transformTransactionsData = (data: {
     };
     return item;
   });
+};
+
+export const transformTransactionsScoreData = (data: {
+  account: AccountBase; score: number;
+}): Array<TransactionsScoreDataItem> => {
+  return [
+    {
+      account: `${data.account.name} - ${data.account.mask}`,
+      score: `${data.score}%`,
+    },
+  ]
 };
 
 interface IdentityData {

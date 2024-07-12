@@ -15,6 +15,7 @@ import {
   assetsCategories,
   incomePaystubsCategories,
   transferCategories,
+  transactionsScore,
   transferAuthorizationCategories,
   signalCategories,
   statementsCategories,
@@ -31,7 +32,8 @@ import {
   transformTransferAuthorizationData,
   transformIncomePaystubsData,
   transformSignalData,
-  transformStatementsData
+  transformStatementsData,
+  transformTransactionsScoreData
 } from "../../dataUtilities";
 
 const Products = () => {
@@ -66,6 +68,16 @@ const Products = () => {
           schema="/transactions/sync/"
           description="Retrieve transactions or incremental updates for credit and depository accounts."
           transformData={transformTransactionsData}
+        />
+      )}
+      {products.includes("transactions") && (
+        <Endpoint
+          endpoint="score"
+          name="Score"
+          categories={transactionsScore}
+          schema="/api/score/"
+          description="Calculate the score for all the last year transactions for the checking account."
+          transformData={transformTransactionsScoreData}
         />
       )}
       {products.includes("identity") && (
