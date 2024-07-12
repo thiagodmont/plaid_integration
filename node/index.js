@@ -2,6 +2,7 @@
 
 // read env vars from .env file
 require('dotenv').config();
+
 const { Configuration, PlaidApi, Products, PlaidEnvironments} = require('plaid');
 const util = require('util');
 const { v4: uuidv4 } = require('uuid');
@@ -9,6 +10,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const moment = require('moment');
 const cors = require('cors');
+const { calculateFiscalResposibilityScore } = require('./financialUtils')
 
 const APP_PORT = process.env.APP_PORT || 8000;
 const PLAID_CLIENT_ID = process.env.PLAID_CLIENT_ID;
@@ -76,17 +78,20 @@ const configuration = new Configuration({
 const client = new PlaidApi(configuration);
 
 const app = express();
+
 app.use(
   bodyParser.urlencoded({
     extended: false,
   }),
 );
+
 app.use(bodyParser.json());
 app.use(cors());
 
-app.post('/api/info', function (request, response, next) {
+app.post('/api/info', function (request, response) {
   response.json({
     item_id: ITEM_ID,
+    public_token: PUBLIC_TOKEN,
     access_token: ACCESS_TOKEN,
     products: PLAID_PRODUCTS,
   });
@@ -202,6 +207,7 @@ app.post(
 // https://plaid.com/docs/#exchange-token-flow
 app.post('/api/set_access_token', function (request, response, next) {
   PUBLIC_TOKEN = request.body.public_token;
+  console.log('PUBLIC_TOKEN', PUBLIC_TOKEN)
   Promise.resolve()
     .then(async function () {
       const tokenResponse = await client.itemPublicTokenExchange({
@@ -218,6 +224,13 @@ app.post('/api/set_access_token', function (request, response, next) {
       });
     })
     .catch(next);
+});
+
+app.post('/api/use_access_token', function (request, response) {
+  ACCESS_TOKEN = request.body.access_token;
+  ITEM_ID
+  console.log('Using a access_token', ACCESS_TOKEN)
+  response.json({ done: true });
 });
 
 // Retrieve ACH or ETF Auth data for an Item's accounts
@@ -266,14 +279,14 @@ app.get('/api/transactions', function (request, response, next) {
         if (cursor === "") {
           await sleep(2000);
           continue; 
-      }
-  
+        }
+
         // Add this page of results
         added = added.concat(data.added);
         modified = modified.concat(data.modified);
         removed = removed.concat(data.removed);
         hasMore = data.has_more;
-        
+
         prettyPrintResponse(response);
       }
 
@@ -284,6 +297,56 @@ app.get('/api/transactions', function (request, response, next) {
     })
     .catch(next);
 });
+
+// Calculate the score for a checking account for the last year.
+// https://plaid.com/docs/#transactions
+app.get('/api/score', function (request, response, next) {
+  Promise.resolve()
+    .then(async function () {
+      // I added a small number here to make the loop work and simulate when we have many transactions and need to do more than one request;
+      const countPerPage = 5
+      let offset = 0
+      let transactions = []
+      let totalTransactions = 0
+
+      const accountsResponse = await client.accountsGet({
+        access_token: ACCESS_TOKEN,
+      })
+
+      const account = accountsResponse.data.accounts.find(account => account.type === 'depository' && account.subtype === 'checking')
+
+      if (!account) {
+        throw new Error('Checking account not found.')
+      }
+
+      while (offset <= totalTransactions) {
+        const request = {
+          access_token: ACCESS_TOKEN,
+          end_date: moment().format('YYYY-MM-DD'),
+          start_date: moment().subtract(365, 'days').format('YYYY-MM-DD'),
+          options: {
+            account_ids: [account.account_id],
+            count: countPerPage,
+            offset,
+          }
+        }
+
+        const result = await client.transactionsGet(request)
+        totalTransactions = result.data.total_transactions
+        transactions = [...transactions, ...result.data.transactions]
+
+        offset += countPerPage;
+      }
+
+      const score = calculateFiscalResposibilityScore({
+        initialBalance: account.balances.available,
+        transactions
+      })
+
+      response.json({ account, score });
+    })
+    .catch(next);
+})
 
 // Retrieve Investment Transactions for an Item
 // https://plaid.com/docs/#investments
@@ -484,31 +547,31 @@ app.get('/api/statements', function (request, response, next) {
 
 // This functionality is only relevant for the UK/EU Payment Initiation product.
 // Retrieve Payment for a specified Payment ID
-app.get('/api/payment', function (request, response, next) {
-  Promise.resolve()
-    .then(async function () {
-      const paymentGetResponse = await client.paymentInitiationPaymentGet({
-        payment_id: PAYMENT_ID,
-      });
-      prettyPrintResponse(paymentGetResponse);
-      response.json({ error: null, payment: paymentGetResponse.data });
-    })
-    .catch(next);
-});
+// app.get('/api/payment', function (request, response, next) {
+//   Promise.resolve()
+//     .then(async function () {
+//       const paymentGetResponse = await client.paymentInitiationPaymentGet({
+//         payment_id: PAYMENT_ID,
+//       });
+//       prettyPrintResponse(paymentGetResponse);
+//       response.json({ error: null, payment: paymentGetResponse.data });
+//     })
+//     .catch(next);
+// });
 
 // This endpoint is still supported but is no longer recommended
 // For Income best practices, see https://github.com/plaid/income-sample instead
-app.get('/api/income/verification/paystubs', function (request, response, next) {
-  Promise.resolve()
-  .then(async function () {
-    const paystubsGetResponse = await client.incomeVerificationPaystubsGet({
-      access_token: ACCESS_TOKEN
-    });
-    prettyPrintResponse(paystubsGetResponse);
-    response.json({ error: null, paystubs: paystubsGetResponse.data})
-  })
-  .catch(next);
-})
+// app.get('/api/income/verification/paystubs', function (request, response, next) {
+//   Promise.resolve()
+//   .then(async function () {
+//     const paystubsGetResponse = await client.incomeVerificationPaystubsGet({
+//       access_token: ACCESS_TOKEN
+//     });
+//     prettyPrintResponse(paystubsGetResponse);
+//     response.json({ error: null, paystubs: paystubsGetResponse.data})
+//   })
+//   .catch(next);
+// })
 
 app.use('/api', function (error, request, response, next) {
   console.log(error);
