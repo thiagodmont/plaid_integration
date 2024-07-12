@@ -28,7 +28,14 @@ $ cd node
 $ ./start.sh
 ```
 
-## 4. Running the frontend
+## 4. Running the tests in the backend (node)
+
+```bash
+$ cd node
+$ npm test
+```
+
+## 5. Running the frontend
 
 The frontend with be running on http://localhost:3000
 
@@ -37,11 +44,12 @@ $ cd frontend
 $ npm start
 ```
 
-## Test credentials
+## 6. Test credentials
 
 In Sandbox, you can log in to any supported institution (except Capital One) using `user_good` as the username and `pass_good` as the password. If prompted to enter a 2-factor authentication code, enter `1234`.
 
-# For a fast development
+# For a fast development interaction
+
 I created the `/api/use_access_token`endpoint to set an access_token and do not need to do authentication everytime. It is a POST request and need the token in the body.
 
 Example of the JSON body:
