@@ -64,6 +64,14 @@ Example of the JSON body:
 { "access_token": "access-sandbox-1234xxxx" }
 ```
 
+# Testing the score endpoint
+
+After starting both the backend and frontend, you will be able to go to the endpoint http://localhost:3000 and see the "Link page" where you will be able to link your account.
+
+Click the "Launch Link" button and follow all the steps for authentication.
+
+After successful authentication, you will be redirected to a page where you will find some endpoints. Search for the `Score` endpoint and click the "Send request" button. Wait for the response, and the result will be displayed in a table below.
+
 # Explanation about the solution
 
 The challenge is to calculate the fiscal responsibility score and return the percentage of time during the year that a checking account remained positive.
