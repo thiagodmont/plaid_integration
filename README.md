@@ -25,7 +25,14 @@ The backend with be running on http://localhost:8000
 
 ```bash
 $ cd node
-$ ./start.sh
+$ npm start
+```
+
+Or if you want to enable the watch mode
+
+```bash
+$ cd node
+$ npm run watch
 ```
 
 ## 4. Running the tests in the backend (node)
